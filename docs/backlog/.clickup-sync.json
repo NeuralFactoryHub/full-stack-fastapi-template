@@ -1,0 +1,23 @@
+{
+  "US-001": {
+    "clickup_task_id": "86c9xqmut",
+    "clickup_url": "https://app.clickup.com/t/86c9xqmut",
+    "parent_task_id": "86c9xq200",
+    "last_synced": "2026-05-22T10:00:00Z",
+    "content_hash": "7e0baa16a7d9cf91"
+  },
+  "US-002": {
+    "clickup_task_id": "86c9xqmvz",
+    "clickup_url": "https://app.clickup.com/t/86c9xqmvz",
+    "parent_task_id": "86c9xq200",
+    "last_synced": "2026-05-22T10:00:00Z",
+    "content_hash": "469ef20f751ae00c"
+  },
+  "US-003": {
+    "clickup_task_id": "86c9xqmx5",
+    "clickup_url": "https://app.clickup.com/t/86c9xqmx5",
+    "parent_task_id": "86c9xq200",
+    "last_synced": "2026-05-22T10:00:00Z",
+    "content_hash": "2ccabf489b23ead4"
+  }
+}
