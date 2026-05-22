@@ -61,8 +61,10 @@ This pattern has been tested and reliably resolves all required fields.
   "US-{NNN}": {
     "clickup_task_id": "string — ClickUp task ID (e.g., '86c8c737r')",
     "clickup_url": "string — full URL to the task",
+    "parent_task_id": "string — ClickUp ID of the parent epic/task (optional)",
     "last_synced": "string — ISO 8601 timestamp of last sync",
-    "content_hash": "string — MD5 hash of the local .md file at sync time"
+    "content_hash": "string — MD5 hash of the local .md file at sync time",
+    "status": "string — last-synced ClickUp status (optional; written by the update-story-status skill)"
   }
 }
 ```
