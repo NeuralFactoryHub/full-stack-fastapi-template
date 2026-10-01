@@ -1,8 +1,8 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
-from sqlmodel import col, func, select
+from fastapi import APIRouter, HTTPException, Query
+from sqlmodel import col, func, or_, select
 
 from app.api.deps import CurrentUser, SessionDep
 from app.models import Item, ItemCreate, ItemPublic, ItemsPublic, ItemUpdate, Message
@@ -12,34 +12,38 @@ router = APIRouter(prefix="/items", tags=["items"])
 
 @router.get("/", response_model=ItemsPublic)
 def read_items(
-    session: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 100
+    session: SessionDep,
+    current_user: CurrentUser,
+    skip: int = 0,
+    limit: int = 100,
+    q: str | None = Query(default=None, max_length=255),
 ) -> Any:
     """
-    Retrieve items.
+    Retrieve items, optionally filtered by free text on title or description.
     """
+    count_statement = select(func.count()).select_from(Item)
+    statement = select(Item)
 
-    if current_user.is_superuser:
-        count_statement = select(func.count()).select_from(Item)
-        count = session.exec(count_statement).one()
-        statement = (
-            select(Item).order_by(col(Item.created_at).desc()).offset(skip).limit(limit)
+    if not current_user.is_superuser:
+        count_statement = count_statement.where(Item.owner_id == current_user.id)
+        statement = statement.where(Item.owner_id == current_user.id)
+
+    term = q.strip() if q else ""
+    if term:
+        # Escape LIKE wildcards so user input matches literally.
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        search = or_(
+            col(Item.title).ilike(pattern, escape="\\"),
+            col(Item.description).ilike(pattern, escape="\\"),
         )
-        items = session.exec(statement).all()
-    else:
-        count_statement = (
-            select(func.count())
-            .select_from(Item)
-            .where(Item.owner_id == current_user.id)
-        )
-        count = session.exec(count_statement).one()
-        statement = (
-            select(Item)
-            .where(Item.owner_id == current_user.id)
-            .order_by(col(Item.created_at).desc())
-            .offset(skip)
-            .limit(limit)
-        )
-        items = session.exec(statement).all()
+        count_statement = count_statement.where(search)
+        statement = statement.where(search)
+
+    count = session.exec(count_statement).one()
+    items = session.exec(
+        statement.order_by(col(Item.created_at).desc()).offset(skip).limit(limit)
+    ).all()
 
     items_public = [ItemPublic.model_validate(item) for item in items]
     return ItemsPublic(data=items_public, count=count)
