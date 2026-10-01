@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { LayoutGrid, Search, Table2 } from "lucide-react"
-import { Suspense, useCallback, useDeferredValue } from "react"
+import { Suspense, useCallback, useDeferredValue, useRef } from "react"
 import { z } from "zod"
 
 import { ItemsService } from "@/client"
@@ -20,7 +20,15 @@ import { cn } from "@/lib/utils"
 type ItemsViewMode = "table" | "cards"
 
 const itemsSearchSchema = z.object({
-  q: z.string().optional().catch(undefined),
+  // Numbers are coerced (?q=123 parses as a number); over-long or invalid
+  // values fall back to "no search" instead of hitting the API's 422.
+  q: z
+    .union([z.string(), z.number()])
+    .transform(String)
+    .transform((s) => s.trim())
+    .pipe(z.string().max(255))
+    .optional()
+    .catch(undefined),
 })
 
 function getItemsQueryOptions(q: string) {
@@ -80,18 +88,34 @@ interface ItemsViewProps {
 function ItemsContent({ view, q, onClearSearch }: ItemsViewProps) {
   const { data: items } = useSuspenseQuery(getItemsQueryOptions(q))
 
+  const status = (
+    <output className="sr-only">
+      {q
+        ? items.data.length === 0
+          ? `No items match "${q}"`
+          : `${items.data.length} ${items.data.length === 1 ? "item" : "items"} match "${q}"`
+        : ""}
+    </output>
+  )
+
   if (items.data.length === 0) {
-    return q ? (
-      <NoSearchResults q={q} onClear={onClearSearch} />
-    ) : (
-      <EmptyItems />
+    return (
+      <>
+        {status}
+        {q ? <NoSearchResults q={q} onClear={onClearSearch} /> : <EmptyItems />}
+      </>
     )
   }
 
-  return view === "cards" ? (
-    <ItemsGrid items={items.data} />
-  ) : (
-    <DataTable columns={columns} data={items.data} />
+  return (
+    <>
+      {status}
+      {view === "cards" ? (
+        <ItemsGrid items={items.data} />
+      ) : (
+        <DataTable columns={columns} data={items.data} />
+      )}
+    </>
   )
 }
 
@@ -113,6 +137,7 @@ function Items() {
   const navigate = Route.useNavigate()
   // Deferred so a suspending refetch keeps showing the previous results.
   const deferredQ = useDeferredValue(q)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const setSearch = useCallback(
     (next: string) => {
@@ -123,7 +148,10 @@ function Items() {
     },
     [navigate],
   )
-  const clearSearch = useCallback(() => setSearch(""), [setSearch])
+  const clearSearch = useCallback(() => {
+    setSearch("")
+    searchRef.current?.focus()
+  }, [setSearch])
 
   return (
     <div className="flex flex-col gap-6">
@@ -135,7 +163,7 @@ function Items() {
         <AddItem />
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <SearchItems value={q} onSearch={setSearch} />
+        <SearchItems ref={searchRef} value={q} onSearch={setSearch} />
         <Tabs
           value={view}
           onValueChange={(value) => setView(value as ItemsViewMode)}

@@ -1,5 +1,5 @@
 import { Search, X } from "lucide-react"
-import { useEffect, useState } from "react"
+import { type Ref, useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,22 +8,33 @@ import { useDebouncedCallback } from "@/hooks/useDebouncedCallback"
 interface SearchItemsProps {
   value: string
   onSearch: (q: string) => void
+  ref?: Ref<HTMLInputElement>
 }
 
-export function SearchItems({ value, onSearch }: SearchItemsProps) {
+export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
   const [text, setText] = useState(value)
-  const { debounced, cancel } = useDebouncedCallback(onSearch, 300)
+  const ownRef = useRef<HTMLInputElement>(null)
+  const lastSent = useRef(value)
+  const { debounced, cancel } = useDebouncedCallback((q: string) => {
+    lastSent.current = q
+    onSearch(q)
+  }, 300)
 
   // Follow external URL changes (back/forward, "Clear search" in the empty
-  // state) without clobbering trailing whitespace the user is still typing.
+  // state); ignore the echo of what we sent ourselves so typing is not clobbered.
   useEffect(() => {
-    setText((current) => (current.trim() === value ? current : value))
-  }, [value])
+    if (value === lastSent.current) return
+    lastSent.current = value
+    cancel()
+    setText(value)
+  }, [value, cancel])
 
   const clear = () => {
     cancel()
     setText("")
+    lastSent.current = ""
     onSearch("")
+    ownRef.current?.focus()
   }
 
   return (
@@ -33,13 +44,19 @@ export function SearchItems({ value, onSearch }: SearchItemsProps) {
         className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
       />
       <Input
+        ref={(node) => {
+          ownRef.current = node
+          if (typeof ref === "function") ref(node)
+          else if (ref) ref.current = node
+        }}
+        maxLength={255}
         value={text}
         onChange={(e) => {
           setText(e.target.value)
           debounced(e.target.value.trim())
         }}
         onKeyDown={(e) => {
-          if (e.key === "Escape" && text) {
+          if (e.key === "Escape" && text && !e.nativeEvent.isComposing) {
             e.preventDefault()
             clear()
           }
