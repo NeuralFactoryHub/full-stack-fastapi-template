@@ -1,29 +1,40 @@
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { LayoutGrid, Search, Table2 } from "lucide-react"
-import { Suspense } from "react"
+import { Suspense, useCallback, useDeferredValue } from "react"
+import { z } from "zod"
 
 import { ItemsService } from "@/client"
 import { DataTable } from "@/components/Common/DataTable"
 import AddItem from "@/components/Items/AddItem"
 import { columns } from "@/components/Items/columns"
 import { ItemsGrid } from "@/components/Items/ItemsGrid"
+import { SearchItems } from "@/components/Items/SearchItems"
 import PendingItems from "@/components/Pending/PendingItems"
 import PendingItemsGrid from "@/components/Pending/PendingItemsGrid"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
+import { cn } from "@/lib/utils"
 
 type ItemsViewMode = "table" | "cards"
 
-function getItemsQueryOptions() {
+const itemsSearchSchema = z.object({
+  q: z.string().optional().catch(undefined),
+})
+
+function getItemsQueryOptions(q: string) {
   return {
-    queryFn: () => ItemsService.readItems({ skip: 0, limit: 100 }),
-    queryKey: ["items"],
+    queryFn: () =>
+      ItemsService.readItems({ skip: 0, limit: 100, q: q || undefined }),
+    // Prefix ["items"] keeps existing invalidations (create/edit/delete) working.
+    queryKey: ["items", { q }],
   }
 }
 
 export const Route = createFileRoute("/_layout/items")({
   component: Items,
+  validateSearch: (search) => itemsSearchSchema.parse(search),
   head: () => ({
     meta: [
       {
@@ -45,11 +56,36 @@ function EmptyItems() {
   )
 }
 
-function ItemsContent({ view }: { view: ItemsViewMode }) {
-  const { data: items } = useSuspenseQuery(getItemsQueryOptions())
+function NoSearchResults({ q, onClear }: { q: string; onClear: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-12">
+      <div className="rounded-full bg-muted p-4 mb-4">
+        <Search className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-semibold break-all">No items match "{q}"</h3>
+      <p className="text-muted-foreground mb-4">Try a different search</p>
+      <Button variant="outline" onClick={onClear}>
+        Clear search
+      </Button>
+    </div>
+  )
+}
+
+interface ItemsViewProps {
+  view: ItemsViewMode
+  q: string
+  onClearSearch: () => void
+}
+
+function ItemsContent({ view, q, onClearSearch }: ItemsViewProps) {
+  const { data: items } = useSuspenseQuery(getItemsQueryOptions(q))
 
   if (items.data.length === 0) {
-    return <EmptyItems />
+    return q ? (
+      <NoSearchResults q={q} onClear={onClearSearch} />
+    ) : (
+      <EmptyItems />
+    )
   }
 
   return view === "cards" ? (
@@ -59,18 +95,35 @@ function ItemsContent({ view }: { view: ItemsViewMode }) {
   )
 }
 
-function ItemsView({ view }: { view: ItemsViewMode }) {
+function ItemsView(props: ItemsViewProps) {
   return (
     <Suspense
-      fallback={view === "cards" ? <PendingItemsGrid /> : <PendingItems />}
+      fallback={
+        props.view === "cards" ? <PendingItemsGrid /> : <PendingItems />
+      }
     >
-      <ItemsContent view={view} />
+      <ItemsContent {...props} />
     </Suspense>
   )
 }
 
 function Items() {
   const [view, setView] = useLocalStorage<ItemsViewMode>("items-view", "table")
+  const { q = "" } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  // Deferred so a suspending refetch keeps showing the previous results.
+  const deferredQ = useDeferredValue(q)
+
+  const setSearch = useCallback(
+    (next: string) => {
+      navigate({
+        search: (prev) => ({ ...prev, q: next || undefined }),
+        replace: true,
+      })
+    },
+    [navigate],
+  )
+  const clearSearch = useCallback(() => setSearch(""), [setSearch])
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,7 +134,8 @@ function Items() {
         </div>
         <AddItem />
       </div>
-      <div className="flex justify-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SearchItems value={q} onSearch={setSearch} />
         <Tabs
           value={view}
           onValueChange={(value) => setView(value as ItemsViewMode)}
@@ -98,7 +152,12 @@ function Items() {
           </TabsList>
         </Tabs>
       </div>
-      <ItemsView view={view} />
+      <div
+        className={cn("transition-opacity", q !== deferredQ && "opacity-60")}
+        aria-busy={q !== deferredQ}
+      >
+        <ItemsView view={view} q={deferredQ} onClearSearch={clearSearch} />
+      </div>
     </div>
   )
 }
