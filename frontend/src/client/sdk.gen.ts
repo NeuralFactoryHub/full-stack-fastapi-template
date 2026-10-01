@@ -8,10 +8,11 @@ import type { ItemsReadItemsData, ItemsReadItemsResponse, ItemsCreateItemData, I
 export class ItemsService {
     /**
      * Read Items
-     * Retrieve items.
+     * Retrieve items, optionally filtered by free text on title or description.
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
+     * @param data.q
      * @returns ItemsPublic Successful Response
      * @throws ApiError
      */
@@ -21,7 +22,8 @@ export class ItemsService {
             url: '/api/v1/items/',
             query: {
                 skip: data.skip,
-                limit: data.limit
+                limit: data.limit,
+                q: data.q
             },
             errors: {
                 422: 'Validation Error'
