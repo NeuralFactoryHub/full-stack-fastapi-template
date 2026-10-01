@@ -1,5 +1,5 @@
 import { Search, X } from "lucide-react"
-import { type Ref, useEffect, useRef, useState } from "react"
+import { type Ref, useEffect, useLayoutEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,11 +15,19 @@ export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
   const [text, setText] = useState(value)
   const ownRef = useRef<HTMLInputElement>(null)
   const valueRef = useRef(value)
-  valueRef.current = value
+  useLayoutEffect(() => {
+    valueRef.current = value
+  })
   // Values we pushed to the URL and have not seen echoed back yet, in order.
   const sent = useRef<string[]>([])
+  // Where the URL will end up once queued sends are applied (lib has no .at()).
+  const pendingTarget = () =>
+    sent.current.length > 0
+      ? sent.current[sent.current.length - 1]
+      : valueRef.current
   const { debounced, cancel } = useDebouncedCallback((q: string) => {
-    if (q === valueRef.current) return // URL would not change: no echo to expect
+    // Compare with where the URL will end up, so no stale echo gets queued.
+    if (q === pendingTarget()) return
     sent.current.push(q)
     onSearch(q)
   }, 300)
@@ -41,7 +49,7 @@ export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
     cancel()
     setText("")
     ownRef.current?.focus()
-    if (valueRef.current !== "") {
+    if (pendingTarget() !== "") {
       sent.current.push("")
       onSearch("")
     }
@@ -60,6 +68,8 @@ export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
           else if (ref) ref.current = node
         }}
         maxLength={255}
+        enterKeyHint="search"
+        autoComplete="off"
         value={text}
         onChange={(e) => {
           setText(e.target.value)

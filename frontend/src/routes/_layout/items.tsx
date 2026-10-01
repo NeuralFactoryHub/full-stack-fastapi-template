@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query"
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { LayoutGrid, Search, Table2 } from "lucide-react"
 import { Suspense, useCallback, useDeferredValue, useRef } from "react"
@@ -93,35 +93,34 @@ interface ItemsViewProps {
 function ItemsContent({ view, q, onClearSearch }: ItemsViewProps) {
   const { data: items } = useSuspenseQuery(getItemsQueryOptions(q))
 
-  const status = (
-    <output className="sr-only">
-      {q
-        ? items.count === 0
-          ? `No items match "${q}"`
-          : `${items.count} ${items.count === 1 ? "item" : "items"} match "${q}"`
-        : ""}
-    </output>
-  )
-
   if (items.data.length === 0) {
-    return (
-      <>
-        {status}
-        {q ? <NoSearchResults q={q} onClear={onClearSearch} /> : <EmptyItems />}
-      </>
+    return q ? (
+      <NoSearchResults q={q} onClear={onClearSearch} />
+    ) : (
+      <EmptyItems />
     )
   }
 
-  return (
-    <>
-      {status}
-      {view === "cards" ? (
-        <ItemsGrid items={items.data} />
-      ) : (
-        <DataTable columns={columns} data={items.data} />
-      )}
-    </>
+  return view === "cards" ? (
+    <ItemsGrid items={items.data} />
+  ) : (
+    <DataTable columns={columns} data={items.data} />
   )
+}
+
+// Stable live region kept outside the aria-busy wrapper so changes are
+// announced. useQuery (not suspense) reads the same cache entry as the list.
+function SearchStatus({ q }: { q: string }) {
+  const { data } = useQuery(getItemsQueryOptions(q))
+  const count = data?.count
+  let message = ""
+  if (q && count !== undefined) {
+    message =
+      count === 0
+        ? `No items match "${q}"`
+        : `${count} ${count === 1 ? "item" : "items"} match "${q}"`
+  }
+  return <output className="sr-only">{message}</output>
 }
 
 function ItemsView(props: ItemsViewProps) {
@@ -186,11 +185,12 @@ function Items() {
         </Tabs>
       </div>
       <div
-        className={cn("transition-opacity", q !== deferredQ && "opacity-60")}
+        className={cn("transition-opacity", q !== deferredQ && "opacity-75")}
         aria-busy={q !== deferredQ}
       >
         <ItemsView view={view} q={deferredQ} onClearSearch={clearSearch} />
       </div>
+      <SearchStatus q={deferredQ} />
     </div>
   )
 }

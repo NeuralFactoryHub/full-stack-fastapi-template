@@ -55,3 +55,10 @@ No tests written (project rule). node_modules was missing; ran `bun install` at 
 - Esc: same path as ×.
 - "mug " with the URL already "mug": the trimmed value equals valueRef, so nothing is sent and nothing is queued; the text keeps the trailing space.
 **Files touched:** frontend/src/components/Items/SearchItems.tsx
+
+#### [13:10] Polish round
+**What:** (1) The dimmed wrapper uses `opacity-75` instead of `opacity-60` for better dark-mode contrast. (2) The live region moved out of ItemsContent into a new `SearchStatus` sibling rendered after the `aria-busy` div, in the same position in every branch. It calls `useQuery(getItemsQueryOptions(deferredQ))`, which reads the same cache entry as the list without suspending, and renders an empty message until data exists. (3) The Input has `enterKeyHint="search"` and `autoComplete="off"` (type stays text). (4) The no-op check in the debounced callback and in `clear()` now compares against `pendingTarget()`, the last queued value or else the current URL value, so a send that would repeat a queued one is skipped. (5) `valueRef` is assigned in a `useLayoutEffect` instead of during render.
+**Why:** Putting the status in a sibling removes it from the busy subtree, so screen readers announce it right away; a non-suspense query was the simplest way to give it the count without lifting state or a callback.
+**Alternatives considered:** Lifting the count through a callback from ItemsContent, rejected as more wiring and a render-time state update.
+**Deviation:** The suggested `sent.current.at(-1)` fails tsc (TS2550, the lib target has no `Array.prototype.at`), so `pendingTarget()` indexes the last element by hand.
+**Files touched:** frontend/src/routes/_layout/items.tsx, frontend/src/components/Items/SearchItems.tsx
