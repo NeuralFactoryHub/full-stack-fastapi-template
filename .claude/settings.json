@@ -1,0 +1,84 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr *)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "Bash(gh run *)",
+      "Bash(gh repo view *)",
+      "Bash(grep *)",
+      "Bash(date *)"
+    ],
+    "deny": [
+      "Read(**/node_modules/**)",
+      "Read(**/.next/**)",
+      "Read(**/.turbo/**)",
+      "Read(**/dist/**)",
+      "Read(**/__pycache__/**)",
+      "Read(**/.venv/**)",
+      "Read(**/.pytest_cache/**)",
+      "Read(**/.mypy_cache/**)",
+      "Read(**/.ruff_cache/**)",
+      "Read(**/coverage/**)",
+      "Read(**/*.min.js)",
+      "Read(**/*.min.css)",
+      "Read(**/package-lock.json)",
+      "Read(**/pnpm-lock.yaml)",
+      "Read(**/yarn.lock)"
+    ],
+    "additionalDirectories": ["/tmp"]
+  },
+  "enabledMcpjsonServers": ["playwright"],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/load-context.sh\"",
+            "timeout": 10,
+            "statusMessage": "🪝 Neural Factory · load-context hook running..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/protect-paths.sh\"",
+            "timeout": 5,
+            "statusMessage": "🪝 Neural Factory · protect-paths hook running..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/format-code.sh\"",
+            "timeout": 30,
+            "statusMessage": "🪝 Neural Factory · format-code hook running..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/scripts/check-journal.sh\"",
+            "timeout": 10,
+            "statusMessage": "🪝 Neural Factory · check-journal hook running..."
+          }
+        ]
+      }
+    ]
+  }
+}
