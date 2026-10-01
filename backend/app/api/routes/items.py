@@ -16,7 +16,7 @@ def read_items(
     current_user: CurrentUser,
     skip: int = 0,
     limit: int = 100,
-    q: str | None = Query(default=None, max_length=255),
+    q: str | None = Query(default=None, max_length=255, pattern=r"^[^\x00]*$"),
 ) -> Any:
     """
     Retrieve items, optionally filtered by free text on title or description.
