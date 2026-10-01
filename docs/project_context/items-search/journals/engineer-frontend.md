@@ -42,3 +42,16 @@ No tests written (project rule). node_modules was missing; ran `bun install` at 
 **Why:** A single lastSent value broke when two echoes were in flight (type "ab", the router echoes "a" after "ab" was sent); the set tolerates out-of-order echoes.
 **Accepted trade-off:** The number coercion means a hand-written `?q=1e3` becomes "1000" and `?q=1.0` becomes "1". Values typed in the box are quoted by the router, so only hand-written links are affected.
 **Files touched:** frontend/src/routes/_layout/items.tsx, frontend/src/components/Items/SearchItems.tsx
+
+#### [12:40] Review round 3 (Gandalf): Set replaced by a consumed queue
+**What:** SearchItems now keeps `sent`, an ordered array of values pushed to the URL and not yet echoed back, with no initial seed. `valueRef` always holds the current URL value (assigned during render, Biome accepted it). The debounced callback skips a send equal to `valueRef.current` (the URL would not change, so no echo would ever come to consume it) and otherwise pushes and calls `onSearch`. The sync effect looks `value` up in the queue: found means our own echo, so drop it and everything older and return; not found means an external change, so empty the queue, cancel the debounce and set the text. `clear()` cancels, empties the text, focuses, and only when the URL value is non-empty queues "" and calls `onSearch("")`.
+**Why:** The seeded Set was never emptied, so a later external navigation to a value that was ever sent looked like an echo and left stale text in the input.
+**Scenarios checked mentally:**
+- Typing "mug": after the debounce "mug" is queued, the URL echoes "mug", the effect consumes it and the text is untouched. Fast typing "m","mu": echoes arrive in order and each one drops itself and the older ones.
+- Empty-state Clear: the route sets q to undefined, so value is "" and is not in the queue (it was consumed), so it counts as external and the text is cleared.
+- Sidebar link to /items while q is active: value becomes "", external, text cleared.
+- Back/forward to a previously sent value: that value was consumed from the queue on its first echo, so it counts as external and the text follows the URL.
+- × clear: the text is emptied at once and "" is queued; the echo "" consumes it. If the URL was already "" nothing is queued.
+- Esc: same path as ×.
+- "mug " with the URL already "mug": the trimmed value equals valueRef, so nothing is sent and nothing is queued; the text keeps the trailing space.
+**Files touched:** frontend/src/components/Items/SearchItems.tsx

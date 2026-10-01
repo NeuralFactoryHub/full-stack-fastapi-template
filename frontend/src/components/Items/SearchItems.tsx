@@ -14,18 +14,25 @@ interface SearchItemsProps {
 export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
   const [text, setText] = useState(value)
   const ownRef = useRef<HTMLInputElement>(null)
-  const sent = useRef(new Set([value]))
+  const valueRef = useRef(value)
+  valueRef.current = value
+  // Values we pushed to the URL and have not seen echoed back yet, in order.
+  const sent = useRef<string[]>([])
   const { debounced, cancel } = useDebouncedCallback((q: string) => {
-    sent.current.add(q)
+    if (q === valueRef.current) return // URL would not change: no echo to expect
+    sent.current.push(q)
     onSearch(q)
   }, 300)
 
-  // Follow external URL changes (back/forward, "Clear search" in the empty
-  // state); ignore the echo of what we sent ourselves so typing is not clobbered.
+  // Follow external URL changes (back/forward, sidebar link, "Clear search" in
+  // the empty state); consume our own echoes so typing is not clobbered.
   useEffect(() => {
-    if (sent.current.has(value)) return // echo of something we sent
-    sent.current.clear()
-    sent.current.add(value)
+    const i = sent.current.indexOf(value)
+    if (i >= 0) {
+      sent.current.splice(0, i + 1)
+      return
+    }
+    sent.current = []
     cancel()
     setText(value)
   }, [value, cancel])
@@ -33,9 +40,11 @@ export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
   const clear = () => {
     cancel()
     setText("")
-    sent.current.add("")
-    onSearch("")
     ownRef.current?.focus()
+    if (valueRef.current !== "") {
+      sent.current.push("")
+      onSearch("")
+    }
   }
 
   return (
