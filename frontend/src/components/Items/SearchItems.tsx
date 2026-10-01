@@ -14,17 +14,18 @@ interface SearchItemsProps {
 export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
   const [text, setText] = useState(value)
   const ownRef = useRef<HTMLInputElement>(null)
-  const lastSent = useRef(value)
+  const sent = useRef(new Set([value]))
   const { debounced, cancel } = useDebouncedCallback((q: string) => {
-    lastSent.current = q
+    sent.current.add(q)
     onSearch(q)
   }, 300)
 
   // Follow external URL changes (back/forward, "Clear search" in the empty
   // state); ignore the echo of what we sent ourselves so typing is not clobbered.
   useEffect(() => {
-    if (value === lastSent.current) return
-    lastSent.current = value
+    if (sent.current.has(value)) return // echo of something we sent
+    sent.current.clear()
+    sent.current.add(value)
     cancel()
     setText(value)
   }, [value, cancel])
@@ -32,7 +33,7 @@ export function SearchItems({ value, onSearch, ref }: SearchItemsProps) {
   const clear = () => {
     cancel()
     setText("")
-    lastSent.current = ""
+    sent.current.add("")
     onSearch("")
     ownRef.current?.focus()
   }

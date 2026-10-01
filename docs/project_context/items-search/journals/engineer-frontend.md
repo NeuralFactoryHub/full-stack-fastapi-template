@@ -36,3 +36,9 @@ No tests written (project rule). node_modules was missing; ran `bun install` at 
 **Alternatives considered:** Keeping the trim comparison was rejected since it cannot tell our echo from an external change.
 **Deviation:** The live region uses `<output className="sr-only">` instead of `<p role="status">` because Biome's useSemanticElements rejected the role; `<output>` has an implicit status role.
 **Files touched:** frontend/src/routes/_layout/items.tsx, frontend/src/components/Items/SearchItems.tsx
+
+#### [12:10] Review round 2 (Gandalf)
+**What:** The search schema in items.tsx now also refuses strings containing a NUL (`.refine((s) => !s.includes("\0"))` inside the pipe, no regex to avoid Biome's noControlCharactersInRegex), so `?q=%00` falls back to no search instead of a backend error. The status message uses `items.count` (the total) instead of `items.data.length`. In SearchItems the `lastSent` ref became a `Set<string>` of every value sent (debounced callback and `clear()`), initialised with the initial value: the sync effect treats a URL value found in the set as our own echo and skips it, otherwise it clears the set, re-seeds it with the external value, cancels the pending debounce and sets the text.
+**Why:** A single lastSent value broke when two echoes were in flight (type "ab", the router echoes "a" after "ab" was sent); the set tolerates out-of-order echoes.
+**Accepted trade-off:** The number coercion means a hand-written `?q=1e3` becomes "1000" and `?q=1.0` becomes "1". Values typed in the box are quoted by the router, so only hand-written links are affected.
+**Files touched:** frontend/src/routes/_layout/items.tsx, frontend/src/components/Items/SearchItems.tsx

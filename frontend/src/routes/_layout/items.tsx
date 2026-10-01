@@ -26,7 +26,12 @@ const itemsSearchSchema = z.object({
     .union([z.string(), z.number()])
     .transform(String)
     .transform((s) => s.trim())
-    .pipe(z.string().max(255))
+    .pipe(
+      z
+        .string()
+        .max(255)
+        .refine((s) => !s.includes("\0")),
+    )
     .optional()
     .catch(undefined),
 })
@@ -91,9 +96,9 @@ function ItemsContent({ view, q, onClearSearch }: ItemsViewProps) {
   const status = (
     <output className="sr-only">
       {q
-        ? items.data.length === 0
+        ? items.count === 0
           ? `No items match "${q}"`
-          : `${items.data.length} ${items.data.length === 1 ? "item" : "items"} match "${q}"`
+          : `${items.count} ${items.count === 1 ? "item" : "items"} match "${q}"`
         : ""}
     </output>
   )
