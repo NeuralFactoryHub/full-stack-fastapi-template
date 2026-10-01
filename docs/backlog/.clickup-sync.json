@@ -19,5 +19,26 @@
     "parent_task_id": "86c9xq200",
     "last_synced": "2026-05-22T10:00:00Z",
     "content_hash": "2ccabf489b23ead4"
+  },
+  "US-004": {
+    "clickup_task_id": "123y1w8ga8h",
+    "clickup_url": "https://app.clickup.com/t/123y1w8ga8h",
+    "parent_task_id": "123y1w8g9t9",
+    "last_synced": "2026-10-01T10:00:00Z",
+    "content_hash": "1c1d2003e0176cb7"
+  },
+  "US-005": {
+    "clickup_task_id": "123y1w8ga8k",
+    "clickup_url": "https://app.clickup.com/t/123y1w8ga8k",
+    "parent_task_id": "123y1w8g9t9",
+    "last_synced": "2026-10-01T10:00:00Z",
+    "content_hash": "3b57c11a99e74438"
+  },
+  "US-006": {
+    "clickup_task_id": "123y1w8ga8p",
+    "clickup_url": "https://app.clickup.com/t/123y1w8ga8p",
+    "parent_task_id": "123y1w8g9t9",
+    "last_synced": "2026-10-01T10:00:00Z",
+    "content_hash": "d3186695cfcc3d02"
   }
 }
