@@ -20,7 +20,7 @@ need to type a string and see only items whose title or description contains it.
 ## Affected services
 
 - `backend` — `app/api/routes/items.py`
-- `frontend` — `routes/_layout/items.tsx`, new `components/Items/SearchItems.tsx`, new `hooks/useDebounce.ts`
+- `frontend` — `routes/_layout/items.tsx`, new `components/Items/SearchItems.tsx`, new `hooks/useDebouncedCallback.ts`
 - `frontend/src/client/` — regenerated via `bash scripts/generate-client.sh`
 
 ## Backend
@@ -41,9 +41,11 @@ need to type a string and see only items whose title or description contains it.
 - Query options: key `["items", { q }]`, call `readItems({ skip: 0, limit: 100, q })`.
   Existing `["items"]` invalidations still match by prefix.
 - `SearchItems`: `Input` + `Search` icon, placeholder "Search items…",
-  `aria-label="Search items"`, left of the Table/Cards tabs. Local state →
-  `useDebounce` (300 ms) → `navigate({ search, replace: true })` wrapped in
-  `useTransition` so previous results stay visible (no skeleton flash).
+  `aria-label="Search items"`, left of the Table/Cards tabs. Typing →
+  `useDebouncedCallback` (300 ms) → `navigate({ search, replace: true })`.
+  The list renders `useDeferredValue(q)` so previous results stay visible
+  while the new query suspends (no skeleton flash). Debouncing the callback
+  rather than the value avoids re-pushing stale text on back/forward.
   Clear button (`aria-label="Clear search"`) and Esc reset field and drop `q`.
   Field initialised from URL `q`.
 - Empty states: with `q` active and no results → `No items match "{q}"` + "Clear search"
